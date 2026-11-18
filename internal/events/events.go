@@ -6,10 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+const topic = "usage events"
+
 type UsageEvent struct {
 	ID           uuid.UUID  `json:"id"`
 	CallerID     uuid.UUID  `json:"caller_id"`
-	JobID        *uuid.UUID `json:"job_id, omitempty"`
+	JobID        *uuid.UUID `json:"job_id,omitempty"`
 	Provder      string     `json:"provider"`
 	Model        string     `json:"model"`
 	InputTokens  int        `json:"input_tokens"`

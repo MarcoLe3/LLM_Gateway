@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"strconv"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -45,6 +48,18 @@ func (c *KafkaConsumer) Run(ctx context.Context) error {
 	}
 }
 
-func (c *KafkaConsumer) insertWithRetry(ctx context.Context, e UsageEvent) {
+func (c *KafkaConsumer) insertWithRetry(ctx context.Context, e UsageEvent) error {
 	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		if err = c.store.Insert(ctx, e); err == nil {
+			return nil
+		}
+		slog.Warn("insert failed", "retrying", "attempt", strconv.Itoa(attempt), "err", err)
+		select {
+		case <-time.After(time.Duration(1<<attempt) * 200 * time.Millisecond):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return err
 }

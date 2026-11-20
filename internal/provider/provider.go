@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"llm_gateway/internal/jobs"
+	"llm_gateway/internal/job"
 )
 
 type Provider interface {
 	Name() string
-	Complete(ctx context.Context, payload jobs.RequestPayload) (*jobs.ResponsePayload, error)
+	Complete(ctx context.Context, payload job.RequestPayload) (*job.ResponsePayload, error)
 }
 
 type Error struct {
@@ -21,5 +21,3 @@ type Error struct {
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s: status %d: %v", e.Provider, e.Status, e.Err)
 }
-
-

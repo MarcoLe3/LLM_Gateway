@@ -6,6 +6,8 @@ import (
 	"llm_gateway/internal/cache"
 	"llm_gateway/internal/events"
 	"llm_gateway/internal/router"
+	"llm_gateway/internal/limiter"
+	"llm_gateway/internal/job"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -14,8 +16,8 @@ import (
 
 type Handler struct {
 	auth      *auth.Auth
-	limiter   *ratelimit.Limiter
-	jobSvc    *jobs.Service
+	limiter   *limiter.Limiter
+	jobSvc    *job.Service
 	router    *router.Router
 	cache     *cache.Cache
 	events    events.Publisher

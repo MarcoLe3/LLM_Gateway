@@ -62,7 +62,7 @@ func (r *Router) backoff(ctx context.Context, attempt int) error {
 
 func (r *Router) canRetry(err error) bool {
 	var pe *provider.Error
-	if errors.As(err, pe) {
+	if errors.As(err, &pe) {
 		return pe.Status == 420 || pe.Status >= 500
 	}
 

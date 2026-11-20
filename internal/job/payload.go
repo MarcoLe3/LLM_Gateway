@@ -13,5 +13,8 @@ type RequestPayload struct {
 }
 
 type ResponsePayload struct {
-	Text string `json:"text"`
+	Text         string `json:"text"`
+	Provider     string `json:"provider"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
 }

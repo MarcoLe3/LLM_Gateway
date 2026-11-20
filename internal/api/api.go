@@ -13,25 +13,18 @@ import (
 )
 
 type Handler struct {
-	auth    *auth.Auth
-	limiter *ratelimit.Limiter
-	jobSvc  *jobs.Service
-	router  *router.Router
-	cache   *cache.Cache
-	events  events.Publisher
-	logger  *slog.Logger
+	auth      *auth.Auth
+	limiter   *ratelimit.Limiter
+	jobSvc    *jobs.Service
+	router    *router.Router
+	cache     *cache.Cache
+	events    events.Publisher
+	logger    *slog.Logger
+	depChecks []depCheck
 }
 
 func NewHandler() *Handler {
 	return &Handler{}
-}
-
-type depChecks 
-
-type depCheck struct {
-	name     string
-	critical bool
-	ping     func(ctx context.Context) error
 }
 
 func (h *Handler) routes() http.Handler {
@@ -75,7 +68,7 @@ func (h *Handler) handleReady(w http.ResponseWriter, r *http.Request) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	statusChecks := make(map[string]string)
+	statusChecks := make(map[string]string, len(h.depChecks))
 	ready := true
 
 	for _, c := range h.depChecks {

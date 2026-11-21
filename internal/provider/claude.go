@@ -34,7 +34,7 @@ type claudeResponse struct {
 	} `json:"usage"`
 }
 
-func NewClaude(apiKey string, model string) *Claude {
+func NewClaude(apiKey, model string) *Claude {
 	return &Claude{
 		apiKey: apiKey,
 		model:  model,

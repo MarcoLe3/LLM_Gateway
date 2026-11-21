@@ -2,18 +2,22 @@ CREATE TABLE IF NOT EXISTS jobs (
     id                  UUID PRIMARY key,
     caller_id           UUID NOT NULL REFERENCES callers(id),
     idempotency_key     TEXT NOT NULL,
-    state               TEXT NOT NULL
+    state               TEXT NOT NULL DEFAULT 'queued'
+                        CHECK(state IN ('queued', 'running','succeeded', 'failed', 'dead'))
+    attempts            INT NOT NULL DEFAULT 0
     provider            TEXT,
     model               TEXT,
-    request_payload     JSONB,
+    request_payload     JSONB NOT NULL,
     response_payload    JSONB
     input_tokens        INT,
     output_tokens       INT,
     last_error          TEXT,
+    last_error_at       TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     started_at          TIMESTAMPTZ,
-    updated_at          TIMESTAMPTZ,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     finished_at         TIMESTAMPTZ
+    UNIQUE (caller_id, idempotency_key)
 )
 
 CREATE TABLE IF NOT EXISTS callers (

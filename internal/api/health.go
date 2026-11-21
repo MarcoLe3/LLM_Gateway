@@ -30,7 +30,3 @@ func RedisCheck(rdb *redis.Client) depCheck {
 		},
 	}
 }
-
-func RabbitCheck(q *queue.RabbitQueue) depCheck {
-	
-}

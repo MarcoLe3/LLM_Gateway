@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     attempts            INT NOT NULL DEFAULT 0
     provider            TEXT,
     model               TEXT,
+    request_hash        TEXT NOT NULL,
     request_payload     JSONB NOT NULL,
     response_payload    JSONB
     input_tokens        INT,

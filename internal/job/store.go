@@ -2,7 +2,8 @@ package job
 
 import (
 	"context"
-	"uuid"
+
+	"github.com/google/uuid"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -14,7 +15,7 @@ type JobStore struct {
 }
 
 const jobCols = `id, caller_id, idempotency_key, request_hash, state, attempts, 
-COALESCE(provider, ''), COALESCE(model, ''), request_payload, response_payload,
+COALESCE(provider, ''), COALESCE(model, ''), request_hash, request_payload, response_payload,
 COALESCE(input_tokens, 0), COALESCE(output_tokens, 0), COALESCE(last_error, ''),
 created_at, started_at, updated_at, finished_at`
 
@@ -27,7 +28,7 @@ func NewJobStore(pool *pgxpool.Pool) *JobStore {
 func scanJob(row pgx.Row) (*Job, error) {
 	var j Job
 	err := row.Scan(
-		&j.ID, &j.CallerID, &j.IdempotencyKey, &j.RequestHash, &j.State, &j.Attempts,
+		&j.ID, &j.CallerID, &j.IdempotencyKey, &j.State, &j.Attempts,
 		&j.Provider, &j.Model, &j.Payload, &j.Result,
 		&j.InputTokens, &j.OutputTokens, &j.Error,
 		&j.CreatedAt, &j.StartedAt, &j.UpdatedAt, &j.FinishedAt,
@@ -53,10 +54,12 @@ func requireOne(tag pgconn.CommandTag, err error) error {
 }
 
 func (s *JobStore) InsertJob(ctx context.Context, j *Job) (bool, error) {
-	tag, err := s.DB.Exec(ctx, `INSERT INTO jobs
-	(id, caller_id,latency_ms, updated_at, created_at, started_at, finished_at)
-	ON VALUES ($1,$2,$3,$4, $5,$6,$7)`,
-		j.ID, j.CallerID, j.LatencyMs, j.UpatedAt, j.CreatedAt, j.StartedAt, j.FinishedAt)
+	tag, err := s.DB.Exec(ctx, `
+		INSERT INTO jobs
+			(id, caller_id, idempotency_key, updated_at, request_hash, state, request_payload)
+		ON VALUES ($1,$2,$3,$4,$5,$6,$7)
+		ON CONFLICT (caller_id, idempotency_key) DO NOTHING`,
+		j.ID, j.CallerID, j.IdempotencyKey, j.RequestHash, j.State, j.Payload)
 	if err != nil {
 		return false, err
 	}

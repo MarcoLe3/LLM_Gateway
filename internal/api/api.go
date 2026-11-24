@@ -79,12 +79,11 @@ func (h *Handler) handleGetJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid job id")
 	}
 
-	job, err := h.jobSvc.Get(r.Context(), caller.ID, id) 
+	job, err := h.jobSvc.Get(r.Context(), caller.ID, id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-
 
 }
 

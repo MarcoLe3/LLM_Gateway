@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -80,19 +81,19 @@ func (s *JobStore) GetJobByIdempotencyKey(ctx context.Context, callerID uuid.UUI
 func (s *JobStore) ClaimJobToRun(ctx context.Context, id uuid.UUID) (*Job, error) {
 	return scanJob(s.DB.QueryRow(ctx, `
 		UPDATE jobs
-		SET state = "running", attempts = attempts + 1,
+		SET state = 'running', attempts = attempts + 1,
 			started_at = now(), updated_at = now()
-		WHERE id = $1 AND state = "queued"
+		WHERE id = $1 AND state = 'queued'
 		RETURNING`+jobCols, id))
 }
 
 func (s *JobStore) MarkSucceeded(ctx context.Context, id uuid.UUID, r *ResponsePayload) error {
 	tag, err := s.DB.Exec(ctx, `
 		UPDATE jobs
-		SET state = "succeeded", response_payload = $2, provider = $3,
+		SET state = 'succeeded', response_payload = $2, provider = $3,
 			input_tokens = $4, output_tokens = $5,
 			finished_at = now(), updated_at = now()
-		WHERE id = $1 and state = "running"`,
+		WHERE id = $1 and state = 'running'`,
 		id, r, r.Provider, r.InputTokens, r.OutputTokens)
 	return requireOne(tag, err)
 }
@@ -100,19 +101,20 @@ func (s *JobStore) MarkSucceeded(ctx context.Context, id uuid.UUID, r *ResponseP
 func (s *JobStore) MarkDead(ctx context.Context, id uuid.UUID, errMsg string) error {
 	tag, err := s.DB.Exec(ctx, `
 		UPDATE jobs
-		SET state = "dead", last_error = $2, last_error_at = now(),
+		SET state = 'dead', last_error = $2, last_error_at = now(),
 			finished_at = now(), updated_at = now()
-		WHERE id = $1 and state = "running"`,
+		WHERE id = $1 and state = 'running'`,
 		id, errMsg)
 	return requireOne(tag, err)
 }
 
-func (s *JobStore) MarkRetry(ctx context.Context, id uuid.UUID, errMsg string) error {
+func (s *JobStore) MarkRetry(ctx context.Context, id uuid.UUID, errMsg string, delay time.Time) error {
 	tag, err := s.DB.Exec(ctx, `
 		UPDATE jobs
-		SET state = "queued", last_error = $2, last_error_at = now(),
+		SET state = 'queued', last_error = $2, last_error_at = now(),
 			updated_at = now()
-		WHERE id = $1 and state = "running"`,
-		id, errMsg)
+			next_run_at = now() + make_interval(secs => $3)
+		WHERE id = $1 and state = 'running'`,
+		id, errMsg, delay)
 	return requireOne(tag, err)
 }

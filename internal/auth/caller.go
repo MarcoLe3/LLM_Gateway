@@ -2,7 +2,8 @@ package auth
 
 import (
 	"context"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 type Caller struct {

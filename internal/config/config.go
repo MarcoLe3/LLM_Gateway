@@ -13,6 +13,7 @@ type Config struct {
 	KafkaBrokers string
 	AnthropicKey string
 	OpenAIKey    string
+	Workers      int
 }
 
 func Load() Config {
@@ -22,6 +23,7 @@ func Load() Config {
 		RedisAddr:    getEnv("REDIS_ADDR", "localhost:6379"),
 		RabbitURL:    getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
+		Workers:      3,
 	}
 }
 

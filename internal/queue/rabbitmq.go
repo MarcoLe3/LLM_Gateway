@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -51,6 +52,20 @@ func NewRabbitQueue(url string) (*RabbitQueue, error) {
 		return nil, err
 	}
 
+	if err := declareTopology(ch); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	if err := ch.Confirm(false); err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	return &RabbitQueue{
+		conn: conn,
+		pub:  ch,
+	}, nil
 }
 
 func declareTopology(ch *amqp.Channel) error {
@@ -113,8 +128,8 @@ func (q *RabbitQueue) publishToQueue(ctx context.Context, key string, jobID uuid
 	msg := amqp.Publishing{
 		ContentType:  "text/plain",
 		DeliveryMode: amqp.Persistent,
-		MessageId:    jobID.string(),
-		Body:         []byte(jobID.string()),
+		MessageId:    jobID.String(),
+		Body:         []byte(jobID.String()),
 	}
 
 	q.mu.Lock()
@@ -137,7 +152,7 @@ func (q *RabbitQueue) publishToQueue(ctx context.Context, key string, jobID uuid
 	return nil
 }
 
-func (q *RabbitQueue) Consume(ctx context.Context, concurrency int) error {
+func (q *RabbitQueue) Consume(ctx context.Context, concurrency int, h Handler) error {
 	ch, err := q.conn.Channel()
 	if err != nil {
 		return err
@@ -156,18 +171,35 @@ func (q *RabbitQueue) Consume(ctx context.Context, concurrency int) error {
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
-		go func(){
+		go func() {
 			defer wg.Done()
-			for d := deliveries {
+			for d := range deliveries {
 				q.handle(ctx, d, h)
 			}
 		}()
 	}
 
-	<- ctx.Done()
+	<-ctx.Done()
 	_ = ch.Cancel(tag, false)
 	wg.Wait()
 	return nil
+}
+
+func (q *RabbitQueue) handle(ctx context.Context, d amqp.Delivery, h Handler) {
+	id, err := uuid.Parse(string(d.Body))
+	if err != nil {
+		slog.Error("bad message, sending to dead queue", "body", string(d.Body))
+		_ = d.Reject(false)
+		return
+	}
+
+	if err := h(ctx, id); err != nil {
+		slog.Error("handler failed, requeueing job", "job", id, "err", err)
+		_ = d.Nack(false, true)
+		return
+	}
+
+	_ = d.Ack(false)
 }
 
 func (q *RabbitQueue) Close() error {

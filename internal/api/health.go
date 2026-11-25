@@ -14,7 +14,7 @@ type depCheck struct {
 }
 
 func (h *Handler) SetDependencyChecks() {
-
+	
 }
 
 func PostgresCheck(pool *pgxpool.Pool) depCheck {

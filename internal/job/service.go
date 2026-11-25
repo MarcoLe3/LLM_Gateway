@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math/rand/v2"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,7 +29,7 @@ func NewStore(store *JobStore, pub queue.Queue, maxAttempts int, baseDelay time.
 	}
 }
 
-func (s *Service) SubmitJob(ctx context.Context, callerID uuid.UUID, key string, p RequestPayload) (*Job, error) {
+func (s *Service) SubmitJob(ctx context.Context, callerID uuid.UUID, Idemkey string, p RequestPayload) (*Job, error) {
 	hash, err := p.Hash()
 	if err != nil {
 		return nil, err
@@ -37,7 +38,7 @@ func (s *Service) SubmitJob(ctx context.Context, callerID uuid.UUID, key string,
 	job := &Job{
 		ID:             uuid.New(),
 		CallerID:       callerID,
-		IdempotencyKey: key,
+		IdempotencyKey: Idemkey,
 		RequestHash:    hash,
 		State:          StateQueued,
 		Payload:        p,
@@ -50,7 +51,7 @@ func (s *Service) SubmitJob(ctx context.Context, callerID uuid.UUID, key string,
 
 	if !inserted {
 		// check if job already exist instead if we couldnt insert it
-		existing, err := s.store.GetJobByIdempotencyKey(ctx, callerID, key)
+		existing, err := s.store.GetJobByIdempotencyKey(ctx, callerID, Idemkey)
 		if err != nil {
 			return nil, err
 		}
@@ -82,20 +83,50 @@ func (s *Service) GetJob(ctx context.Context, callerID, jobID uuid.UUID) (*Job, 
 	return job, nil
 }
 
-func (s *Service) MarkJobFailed(ctx context.Context, job *Job, errMsg error) error {
-	err := s.store.MarkRetry(ctx, job.ID, errMsg.Error())
+func (s *Service) ClaimJobToRun(ctx context.Context, jobID uuid.UUID) (*Job, error) {
+	job, err := s.store.ClaimJobToRun(ctx, jobID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return job, err
 }
 
-func (s *Service) MarkJobDead(ctx context.Context, job *Job, errMsg error) error {
-	err := s.store.MarkDead(ctx, job.ID, errMsg.Error())
-	if err != nil {
+func (s *Service) MarkSucceeded(ctx context.Context, jobID uuid.UUID, res *ResponsePayload) error {
+	return s.store.MarkSucceeded(ctx, jobID, res)
+}
+
+func (s *Service) MarkJobFailed(ctx context.Context, job *Job, errMsg error) error {
+	msg := truncate(errMsg.Error(), 2000)
+
+	if job.Attempts >= s.maxAttempts {
+		if err := s.store.MarkDead(ctx, job.ID, msg); err != nil {
+			return err
+		}
+
+		return s.pub.PublishDead(ctx, job.ID)
+	}
+
+	delay := s.backoff(job.Attempts)
+	if err := s.store.MarkRetry(ctx, job.ID, msg, time.Now().Add(delay)); err != nil {
 		return err
 	}
-	
-	return nil
+	return s.pub.PublishDelayed(ctx, job.ID, delay)
+}
+
+func (s *Service) backoff(attempt int) time.Duration {
+	d := s.baseDelay * time.Duration(1<<max(attempt-1, 0))
+	if d > time.Minute*5 {
+		d = time.Minute * 5
+	}
+
+	return d/2 + time.Duration(rand.N(d/2+1))
+}
+
+func truncate(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+
+	return s
 }

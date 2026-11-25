@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"llm_gateway/internal/auth"
 	"llm_gateway/internal/cache"
 	"llm_gateway/internal/events"
@@ -13,7 +14,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -38,9 +40,9 @@ func (h *Handler) routes() http.Handler {
 		return h.auth.Middleware(h.limiter.Middleware(hf))
 	}
 
-	mux.HandleFunc("POST /v1/job", protected(h.handleSubmitJob))
-	mux.HandleFunc("POST /v1/chat", protected(h.handleChat))
-	mux.HandleFunc("GET /v1/job/{id}", protected(h.handleGetJob))
+	mux.Handle("POST /v1/job", protected(h.handleSubmitJob))
+	mux.Handle("POST /v1/chat", protected(h.handleChat))
+	mux.Handle("GET /v1/job/{id}", protected(h.handleGetJob))
 	mux.HandleFunc("GET /readyz", h.handleReady)
 	mux.HandleFunc("GET /healthz", h.handleHealth)
 	return mux
@@ -68,7 +70,18 @@ func (h *Handler) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJson(w, http.StatusAccepted)
+	j, err := h.jobSvc.SubmitJob(r.Context(), caller.ID, idemKey, p)
+	if err != nil {
+		if errors.Is(err, job.ErrKeyReuse) {
+			writeError(w, http.StatusConflict, "idempotency key reused with a different request")
+			return
+		}
+		slog.Error("submit failed", "err", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	writeJson(w, http.StatusAccepted, map[string]any{"job_id": j.ID, "job_state": j.State})
 }
 
 func (h *Handler) handleGetJob(w http.ResponseWriter, r *http.Request) {
@@ -79,11 +92,18 @@ func (h *Handler) handleGetJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid job id")
 	}
 
-	job, err := h.jobSvc.Get(r.Context(), caller.ID, id)
+	j, err := h.jobSvc.GetJob(r.Context(), caller.ID, id)
 	if err != nil {
+		if errors.Is(err, job.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "job not found")
+			return
+		}
+		slog.Error("get job failed", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	writeJson(w, http.StatusOK, j)
 
 }
 
@@ -143,15 +163,15 @@ func (h *Handler) handleReady(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func(c depCheck) {
 			defer wg.Done()
-			err := c.ping(ctx)
+			err := c.Ping(ctx)
 			mu.Lock()
 			if err != nil {
-				results[c.name] = "down"
-				if c.critical {
+				statusChecks[c.Name] = "down"
+				if c.Critical {
 					ready = false
 				}
 			} else {
-				results[c.name] = "up"
+				statusChecks[c.Name] = "up"
 			}
 			mu.Unlock()
 		}(c)
@@ -164,5 +184,5 @@ func (h *Handler) handleReady(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusServiceUnavailable
 	}
 
-	writeJson()
+	writeJson(w, status, map[string]any{"ready": ready, "dep_checks": statusChecks})
 }

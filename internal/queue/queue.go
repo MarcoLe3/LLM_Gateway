@@ -11,6 +11,8 @@ type Queue interface {
 	Publish(ctx context.Context, jobID uuid.UUID) error
 	PublishDelayed(ctx context.Context, jobID uuid.UUID, d time.Duration) error
 	PublishDead(ctx context.Context, jobID uuid.UUID) error
-	Consume(ctx context.Context, jobID uuid.UUID) error
+	Consume(ctx context.Context, concurrency int, h Handler) error
 	Close() error
 }
+
+type Handler func(ctx context.Context, jobID uuid.UUID) error

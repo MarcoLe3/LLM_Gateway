@@ -14,7 +14,17 @@ import (
 type Router struct {
 	providers   []provider.Provider
 	maxAttempts int
+	baseDelay   time.Duration
 	timeout     time.Duration
+}
+
+func New(providers []provider.Provider, maxAttempts int, baseDelay, timeout time.Duration) *Router {
+	return &Router{
+		providers:   providers,
+		maxAttempts: maxAttempts,
+		baseDelay:   baseDelay,
+		timeout:     timeout,
+	}
 }
 
 func (r *Router) Complete(ctx context.Context, p job.RequestPayload) (*job.ResponsePayload, error) {

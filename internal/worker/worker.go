@@ -17,6 +17,16 @@ type Worker struct {
 	cfg    config.Config
 }
 
+func NewWorker(svc *job.Service,
+	r *router.Router, q queue.Queue, cfg config.Config) *Worker {
+	return &Worker{
+		svc:    svc,
+		router: r,
+		queue:  q,
+		cfg:    cfg,
+	}
+}
+
 func (w *Worker) processJob(ctx context.Context, jobID uuid.UUID) error {
 	job, err := w.svc.ClaimJobToRun(ctx, jobID)
 	if err != nil {

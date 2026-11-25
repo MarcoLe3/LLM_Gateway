@@ -88,3 +88,7 @@ func (o *OpenAI) Complete(ctx context.Context, p job.RequestPayload) (*job.Respo
 		Provider:     "openai",
 	}, nil
 }
+
+func (o *OpenAI) Name() string {
+	return "openai"
+}

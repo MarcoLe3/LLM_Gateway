@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"math/rand/v2"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,7 +19,7 @@ type Service struct {
 	baseDelay   time.Duration
 }
 
-func NewStore(store *JobStore, pub queue.Queue, maxAttempts int, baseDelay time.Duration) *Service {
+func NewService(store *JobStore, pub queue.Queue, maxAttempts int, baseDelay time.Duration) *Service {
 	return &Service{
 		store:       store,
 		pub:         pub,
@@ -107,20 +106,11 @@ func (s *Service) MarkJobFailed(ctx context.Context, job *Job, errMsg error) err
 		return s.pub.PublishDead(ctx, job.ID)
 	}
 
-	delay := s.backoff(job.Attempts)
-	if err := s.store.MarkRetry(ctx, job.ID, msg, time.Now().Add(delay)); err != nil {
+	delay := queue.RetryDelay(job.Attempts)
+	if err := s.store.MarkRetry(ctx, job.ID, msg, delay); err != nil {
 		return err
 	}
-	return s.pub.PublishDelayed(ctx, job.ID, delay)
-}
-
-func (s *Service) backoff(attempt int) time.Duration {
-	d := s.baseDelay * time.Duration(1<<max(attempt-1, 0))
-	if d > time.Minute*5 {
-		d = time.Minute * 5
-	}
-
-	return d/2 + time.Duration(rand.N(d/2+1))
+	return s.pub.PublishDelayed(ctx, job.ID, job.Attempts)
 }
 
 func truncate(s string, n int) string {

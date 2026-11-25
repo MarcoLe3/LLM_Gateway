@@ -68,6 +68,11 @@ func NewRabbitQueue(url string) (*RabbitQueue, error) {
 	}, nil
 }
 
+func RetryDelay(attempt int) time.Duration {
+	i := max(attempt-1, 0)
+	return retryTiers[min(i, len(retryTiers)-1)].TTL
+}
+
 func declareTopology(ch *amqp.Channel) error {
 	if err := ch.ExchangeDeclare(exchange, "direct", true, false, false, false, nil); err != nil {
 		return err

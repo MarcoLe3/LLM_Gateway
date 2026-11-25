@@ -23,10 +23,11 @@ type Result struct {
 	RetryAfter time.Duration
 }
 
-func NewLimiter(rdb *redis.Client) *Limiter {
+func NewLimiter(rdb *redis.Client, allow bool) *Limiter {
 	return &Limiter{
-		rdb:    rdb,
-		script: redis.NewScript(luaSrc),
+		rdb:               rdb,
+		script:            redis.NewScript(luaSrc),
+		allowIfRedisError: allow,
 	}
 }
 

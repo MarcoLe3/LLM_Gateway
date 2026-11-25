@@ -108,7 +108,7 @@ func (s *JobStore) MarkDead(ctx context.Context, id uuid.UUID, errMsg string) er
 	return requireOne(tag, err)
 }
 
-func (s *JobStore) MarkRetry(ctx context.Context, id uuid.UUID, errMsg string, delay time.Time) error {
+func (s *JobStore) MarkRetry(ctx context.Context, id uuid.UUID, errMsg string, delay time.Duration) error {
 	tag, err := s.DB.Exec(ctx, `
 		UPDATE jobs
 		SET state = 'queued', last_error = $2, last_error_at = now(),

@@ -3,7 +3,8 @@ package limiter
 import (
 	"context"
 	"time"
-	"uuid"
+
+	"github.com/google/uuid"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -11,8 +12,9 @@ import (
 var luaSrc string
 
 type Limiter struct {
-	rdb    *redis.Client
-	script *redis.Script
+	rdb               *redis.Client
+	script            *redis.Script
+	allowIfRedisError bool
 }
 
 type Result struct {
@@ -33,4 +35,13 @@ func (l *Limiter) Allow(ctx context.Context, callerID uuid.UUID, rpm int) (Resul
 	key := "rl:" + callerID.String()
 
 	vals, err := l.script.Run(ctx, l.rdb, []string{key}, rpm, rate, 120).Slice()
+	if err != nil {
+		return Result{Allowed: l.allowIfRedisError}, err
+	}
+
+	return Result{
+		Allowed:    vals[0].(int64) == 1,
+		Remaining:  int(vals[1].(int64)),
+		RetryAfter: time.Duration(vals[2].(int64)) * time.Millisecond,
+	}, nil
 }

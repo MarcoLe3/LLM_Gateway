@@ -3,6 +3,7 @@ package limiter
 import (
 	"llm_gateway/internal/auth"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 )
@@ -20,8 +21,8 @@ func (l *Limiter) Middleware(next http.HandlerFunc) http.Handler {
 		}
 
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
-		if !res.Allowed() {
-			w.Header().Set("Retry-After", strconv.Itoa(int(math)))
+		if !res.Allowed {
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(res.RetryAfter.Seconds()))))
 			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}

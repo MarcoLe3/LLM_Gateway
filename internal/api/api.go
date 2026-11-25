@@ -25,12 +25,19 @@ type Handler struct {
 	router    *router.Router
 	cache     *cache.Cache
 	events    events.Publisher
-	logger    *slog.Logger
 	depChecks []depCheck
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(a *auth.Auth, l *limiter.Limiter, j *job.Service,
+	r *router.Router, c *cache.Cache, e events.Publisher, d []depCheck) *Handler {
+	return &Handler{
+		auth:      a,
+		limiter:   l,
+		router:    r,
+		cache:     c,
+		events:    e,
+		depChecks: d,
+	}
 }
 
 func (h *Handler) routes() http.Handler {

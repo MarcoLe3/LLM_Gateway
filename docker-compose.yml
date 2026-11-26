@@ -1,4 +1,30 @@
 services:
+  gateway:
+    build: .
+    command: ["/app/gateway"]
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - kafka
+    ports:
+      - "8080:8080"
+  worker:
+    build: .
+    command: ["/app/worker"]
+    depends_on:
+      - postgres
+      - kafka
+      - rabbitmq
+  usuage-consumer:
+    build: .
+    command: ["/app/usuage-consumer"]
+    depends_on:
+      - postgres
+      - kafka
+      - rabbitmq
   postgres:
     image: postgres:16
     environment:

@@ -23,7 +23,7 @@ func (s *EventStore) Insert(ctx context.Context, e UsageEvent) error {
 		cost_usd, latency_ms,cache_hit, success, error, created_at) 
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
 		ON CONFLICT (id) DO NOTHING`,
-		e.ID, e.CallerID, e.JobID, e.Provder, e.Model, e.InputTokens, e.OutputTokens,
+		e.ID, e.CallerID, e.JobID, e.Provider, e.Model, e.InputTokens, e.OutputTokens,
 		e.CostUSD, e.LatencyMs, e.CacheHit, e.Success, e.Error, e.CreatedAt)
 
 	return err

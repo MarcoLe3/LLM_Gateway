@@ -12,7 +12,7 @@ type UsageEvent struct {
 	ID           uuid.UUID  `json:"id"`
 	CallerID     uuid.UUID  `json:"caller_id"`
 	JobID        *uuid.UUID `json:"job_id,omitempty"`
-	Provder      string     `json:"provider"`
+	Provider      string     `json:"provider"`
 	Model        string     `json:"model"`
 	InputTokens  int        `json:"input_tokens"`
 	OutputTokens int        `json:"output_tokens"`

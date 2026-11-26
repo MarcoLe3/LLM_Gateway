@@ -7,9 +7,16 @@ on:
         branches: [main]
 
 jobs:
-    test:
+    unit:
         runs-on: ubuntu-latest
-
         steps:
-            - name: checkout code
-              uses: actions/checkout@v4
+            - uses: actions/checkout@v4
+            - uses: actions/setup-go@v5
+              with:
+                go-version-file: go.mod
+                cache: true
+            - runs: make lint
+            - runs: make test
+    
+    integration:
+        

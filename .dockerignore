@@ -6,3 +6,4 @@ docs
 *.md
 **/*_test.go
 .github
+bench/results

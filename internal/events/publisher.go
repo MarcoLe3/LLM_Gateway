@@ -36,7 +36,7 @@ func NewKafkaProducer(brokers []string) *KafkaProducer {
 	}
 }
 
-func (p *KafkaProducer) Publish(ctx context.Context, key string, e UsageEvent) error {
+func (p *KafkaProducer) Publish(ctx context.Context, e UsageEvent) error {
 	b, err := json.Marshal(e)
 
 	if err != nil {
@@ -44,7 +44,7 @@ func (p *KafkaProducer) Publish(ctx context.Context, key string, e UsageEvent) e
 	}
 
 	return p.writer.WriteMessages(ctx, kafka.Message{
-		Key:   []byte(key),
+		Key:   []byte(e.CallerID.String()),
 		Value: b,
 	})
 }

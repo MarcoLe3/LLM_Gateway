@@ -7,22 +7,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type depCheck struct {
+type DepCheck struct {
 	Name     string
 	Critical bool
 	Ping     func(ctx context.Context) error
 }
 
-func (h *Handler) SetDependencyChecks() {
-	
+func PostgresCheck(pool *pgxpool.Pool) DepCheck {
+	return DepCheck{Name: "postgres", Critical: true, Ping: pool.Ping}
 }
 
-func PostgresCheck(pool *pgxpool.Pool) depCheck {
-	return depCheck{Name: "postgres", Critical: true, Ping: pool.Ping}
-}
-
-func RedisCheck(rdb *redis.Client) depCheck {
-	return depCheck{
+func RedisCheck(rdb *redis.Client) DepCheck {
+	return DepCheck{
 		Name:     "redis",
 		Critical: false,
 		Ping: func(ctx context.Context) error {

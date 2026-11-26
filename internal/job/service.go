@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -16,15 +15,13 @@ type Service struct {
 	store       *JobStore
 	pub         queue.Queue
 	maxAttempts int
-	baseDelay   time.Duration
 }
 
-func NewService(store *JobStore, pub queue.Queue, maxAttempts int, baseDelay time.Duration) *Service {
+func NewService(store *JobStore, pub queue.Queue, maxAttempts int) *Service {
 	return &Service{
 		store:       store,
 		pub:         pub,
 		maxAttempts: maxAttempts,
-		baseDelay:   baseDelay,
 	}
 }
 

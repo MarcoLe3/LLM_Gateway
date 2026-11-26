@@ -4,6 +4,7 @@ import (
 	"context"
 	"llm_gateway/internal/config"
 	"llm_gateway/internal/db"
+	"llm_gateway/internal/events"
 	"llm_gateway/internal/job"
 	"llm_gateway/internal/provider"
 	"llm_gateway/internal/queue"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -32,6 +34,9 @@ func main() {
 
 	defer rq.Close()
 
+	pub := events.NewKafkaProducer(strings.Split(cfg.KafkaBrokers, ","))
+	defer pub.Close()
+
 	rtr := router.New(
 		[]provider.Provider{
 			provider.NewClaude(cfg.AnthropicKey, ""),
@@ -40,7 +45,7 @@ func main() {
 		cfg.MaxAttempts, 200*time.Millisecond, cfg.ProviderTimeout,
 	)
 
-	jobSvc := job.NewService(job.NewJobStore(pool), rq, cfg.MaxAttempts, 5*time.Second)
+	jobSvc := job.NewService(job.NewJobStore(pool), rq, cfg.MaxAttempts)
 	w := worker.NewWorker(jobSvc, rtr, rq, cfg)
 
 	slog.Info("workers started", "workers", cfg.Workers)

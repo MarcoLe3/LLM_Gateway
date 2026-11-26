@@ -25,11 +25,11 @@ type Handler struct {
 	router    *router.Router
 	cache     *cache.Cache
 	events    events.Publisher
-	depChecks []depCheck
+	depChecks []DepCheck
 }
 
 func NewHandler(a *auth.Auth, l *limiter.Limiter, j *job.Service,
-	r *router.Router, c *cache.Cache, e events.Publisher, d []depCheck) *Handler {
+	r *router.Router, c *cache.Cache, e events.Publisher, d []DepCheck) *Handler {
 	return &Handler{
 		auth:      a,
 		limiter:   l,
@@ -40,7 +40,7 @@ func NewHandler(a *auth.Auth, l *limiter.Limiter, j *job.Service,
 	}
 }
 
-func (h *Handler) routes() http.Handler {
+func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	protected := func(hf http.HandlerFunc) http.Handler {
@@ -168,7 +168,7 @@ func (h *Handler) handleReady(w http.ResponseWriter, r *http.Request) {
 
 	for _, c := range h.depChecks {
 		wg.Add(1)
-		go func(c depCheck) {
+		go func(c DepCheck) {
 			defer wg.Done()
 			err := c.Ping(ctx)
 			mu.Lock()

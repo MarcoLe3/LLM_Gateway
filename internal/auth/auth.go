@@ -16,10 +16,9 @@ type Auth struct {
 
 var ErrInvalidKey = errors.New("Invalid api key")
 
-func NewAuth(store AuthStore, cache cache.Cache) *Auth {
+func NewAuth(store AuthStore) *Auth {
 	return &Auth{
 		store: store,
-		cache: cache,
 	}
 }
 

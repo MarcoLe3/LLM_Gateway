@@ -46,7 +46,7 @@ func main() {
 	)
 
 	jobSvc := job.NewService(job.NewJobStore(pool), rq, cfg.MaxAttempts)
-	w := worker.NewWorker(jobSvc, rtr, rq, cfg)
+	w := worker.NewWorker(jobSvc, rtr, rq, pub, cfg)
 
 	slog.Info("workers started", "workers", cfg.Workers)
 	if err := w.Run(ctx); err != nil {

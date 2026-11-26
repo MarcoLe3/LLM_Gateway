@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"llm_gateway/internal/events"
 	"llm_gateway/internal/job"
 	"testing"
@@ -87,6 +88,46 @@ func TestProcessJob_Success(t *testing.T) {
 
 	if pub.events[0].CallerID != j.CallerID {
 		t.Fatal("event must carry the job's caller")
+	}
+}
+
+func TestProcessJob_RouterFailure(t *testing.T) {
+	boom := errors.New("all providers failed")
+	j := &job.Job{ID: uuid.New(), CallerID: uuid.New(), Attempts: 1}
+
+	svc := &fakeSvc{claim: j}
+	rtr := &fakeRouter{err: boom}
+	pub := &fakePub{}
+
+	w := newTestWorker(svc, rtr, pub)
+
+	if err := w.processJob(context.Background(), j.ID); err != nil {
+		t.Fatalf("expected nil (failure handled), got %v", err)
+	}
+	if !svc.failed || !errors.Is(svc.failCause, boom) {
+		t.Fatal("expected MarkJobFailed with the router's error")
+	}
+	if svc.succeeded != nil {
+		t.Fatal("must not mark succeeded")
+	}
+	if len(pub.events) != 1 || pub.events[0].Success {
+		t.Fatalf("expected one failure event, got %+v", pub.events)
+	}
+}
+
+func TestProcessJob_ClaimDBError(t *testing.T) {
+	svc := &fakeSvc{claimErr: errors.New("db is down")}
+	rtr := &fakeRouter{}
+	pub := &fakePub{}
+
+	w := newTestWorker(svc, rtr, pub)
+
+	if err := w.processJob(context.Background(), uuid.New()); err == nil {
+		t.Fatal("expected an error so the queue nacks and redelivers")
+	}
+
+	if rtr.attempts != 0 {
+		t.Fatal("router must not run when the claim failed")
 	}
 }
 
